@@ -3,30 +3,27 @@ const API_URL = "https://script.google.com/macros/s/AKfycbyd81D998Alfz0g9a3Umy61
 
 /* ===== UI ===== */
 function openAdd(){
-  title.innerText = "➕ Qarz qo‘shish";
+  title.innerText="➕ Qarz qo‘shish";
   menu.classList.add("hidden");
   addBox.classList.remove("hidden");
 }
-
 function openSearch(){
-  title.innerText = "🔍 Qidirish";
+  title.innerText="🔍 Qidirish";
   menu.classList.add("hidden");
   searchBox.classList.remove("hidden");
-  results.innerHTML = "";
 }
-
 function goBack(){
-  title.innerText = "📒 Qarz daftari";
+  title.innerText="📒 Qarz daftari";
   menu.classList.remove("hidden");
   addBox.classList.add("hidden");
   searchBox.classList.add("hidden");
-  results.innerHTML = "";
+  results.innerHTML="";
 }
 
-/* ===== ADD (Google Sheets ga yozadi) ===== */
+/* ===== ADD ===== */
 function saveDebt(){
   if(!name.value || !phone.value || !total.value){
-    alert("❗ Majburiy maydonlar to‘ldirilmagan");
+    alert("Majburiy maydonlar to‘ldirilmagan");
     return;
   }
 
@@ -34,8 +31,8 @@ function saveDebt(){
     method: "POST",
     body: JSON.stringify({
       action: "add",
-      name: name.value.trim(),
-      phone: phone.value.trim(),
+      name: name.value,
+      phone: phone.value,
       total: Number(total.value),
       date: new Date().toLocaleString()
     })
@@ -48,63 +45,74 @@ function saveDebt(){
     total.value = "";
     goBack();
   })
-  .catch(() => alert("❌ Xatolik yuz berdi"));
+  .catch(err => {
+    alert("❌ Xatolik: " + err);
+  });
 }
 
-/* ===== SEARCH (Ism yoki telefon) ===== */
+/* ===== SEARCH ===== */
 function doSearch(){
-  const q = query.value.trim();
-  if(!q){
-    alert("🔎 Qidirish uchun ism yoki telefon yozing");
-    return;
-  }
-
   results.innerHTML = "⏳ Qidirilmoqda...";
 
-  fetch(API_URL + "?action=search&q=" + encodeURIComponent(q))
+  fetch(API_URL + "?action=search&q=" + encodeURIComponent(query.value))
     .then(r => r.json())
-    .then(showResults)
-    .catch(() => results.innerHTML = "❌ Xatolik");
+    .then(data => {
+      results.innerHTML = "";
+
+      if(!data || data.length === 0){
+        results.innerHTML = "❌ Natija topilmadi";
+        return;
+      }
+
+      data.forEach(d => {
+        const remain = d.total - d.paid;
+        const status = remain === 0 ? "🟢 Yopilgan" : "🔴 Ochiq";
+
+        results.innerHTML += `
+          <div class="card ${remain===0?'green':''}">
+            <b>${d.name}</b><br>
+            📞 ${d.phone}<br>
+            💰 Jami: ${d.total}<br>
+            💵 To‘langan: ${d.paid}<br>
+            📉 Qolgan: ${remain}<br>
+            📌 ${status}<br>
+            🕒 ${d.date}
+          </div>
+        `;
+      });
+    })
+    .catch(err=>{
+      results.innerHTML="❌ Xatolik: "+err;
+    });
 }
 
 /* ===== LOAD ALL ===== */
 function loadAll(){
-  title.innerText = "📋 Barcha qarzlar";
+  title.innerText="📋 Barcha qarzlar";
   menu.classList.add("hidden");
   searchBox.classList.remove("hidden");
-  results.innerHTML = "⏳ Yuklanmoqda...";
+  results.innerHTML="⏳ Yuklanmoqda...";
 
   fetch(API_URL)
-    .then(r => r.json())
+    .then(r=>r.json())
     .then(showResults)
-    .catch(() => results.innerHTML = "❌ Xatolik");
+    .catch(e=>results.innerHTML="❌ Xatolik");
 }
 
 /* ===== RENDER ===== */
 function showResults(list){
-  results.innerHTML = "";
-
-  if(!list || list.length === 0){
-    results.innerHTML = "❌ Ma’lumot topilmadi";
-    return;
-  }
-
-  list.forEach(d => {
+  results.innerHTML="";
+  list.forEach(d=>{
     const remain = d.total - d.paid;
-    const status = remain === 0 ? "🟢 Yopilgan" : "🔴 Ochiq";
-    const cls = remain === 0 ? "green" : "";
-
+    const cls = remain===0 ? "green" : "";
     results.innerHTML += `
       <div class="card ${cls}">
         <b>${d.name}</b><br>
         📞 ${d.phone}<br>
         💰 Jami: ${d.total}<br>
         💵 To‘langan: ${d.paid}<br>
-        📉 Qolgan: ${remain}<br>
-        📌 ${status}<br>
-        🕒 ${d.date}
-      </div>
-    `;
+        📉 Qolgan: ${remain}
+      </div>`;
   });
 }
 </script>
