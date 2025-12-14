@@ -16,7 +16,6 @@ button { width:100%; padding:12px; margin:6px 0; font-size:16px; }
 input { width:100%; padding:10px; margin:5px 0; }
 .hidden { display:none; }
 .card { border:1px solid #ccc; padding:10px; margin-top:10px; background:#fff; }
-.green { background:#d4edda; }
 </style>
 </head>
 
@@ -32,9 +31,10 @@ input { width:100%; padding:10px; margin:5px 0; }
 
 <!-- ADD -->
 <div id="addBox" class="hidden">
+  <input id="date" type="date">
   <input id="name" placeholder="Ism familiya" required>
   <input id="phone" placeholder="Telefon raqam" required>
-  <input id="total" type="number" placeholder="Qarz summasi (so‘m)" required>
+  <input id="total" type="number" placeholder="Jami qarz (so‘m)" required>
   <input id="photo" type="file" accept="image/*">
   <button class="add" onclick="saveDebt()">💾 Saqlash</button>
   <button class="back" onclick="goBack()">🔙 Orqaga</button>
@@ -50,12 +50,14 @@ input { width:100%; padding:10px; margin:5px 0; }
 </div>
 
 <script>
-/* ==============================
-   🔗 GOOGLE APPS SCRIPT API
-   ============================== */
+/* 🔗 API */
 const API_URL = "https://script.google.com/macros/s/AKfycbzCzvclQVGECPNa5i4HvkNWqcX1XfOUZyjgOIrIbVNXrjOvtbA9Heah0GkSBpODSryfHw/exec";
 
-/* ===== UI ===== */
+/* Sana default */
+document.getElementById("date").value =
+  new Date().toISOString().split("T")[0];
+
+/* UI */
 function openAdd(){
   title.innerText="➕ Qarz qo‘shish";
   menu.classList.add("hidden");
@@ -74,61 +76,49 @@ function goBack(){
   results.innerHTML="";
 }
 
-/* ===== ADD ===== */
+/* ADD */
 function saveDebt(){
-  if(!name.value || !phone.value || !total.value){
-    alert("❗ Majburiy maydonlar to‘ldirilmagan");
+  if(!date.value || !name.value || !phone.value || !total.value){
+    alert("❗ Barcha majburiy maydonlarni to‘ldiring");
     return;
   }
 
-  const formData = new FormData();
-  formData.append("action", "add");
-  formData.append("name", name.value);
-  formData.append("phone", phone.value);
-  formData.append("total", total.value);
-  formData.append("date", new Date().toLocaleString());
+  const fd = new FormData();
+  fd.append("action","add");
+  fd.append("date", date.value);
+  fd.append("name", name.value);
+  fd.append("phone", phone.value);
+  fd.append("total", total.value);
+  if(photo.files[0]) fd.append("photo", photo.files[0]);
 
-  if(photo.files[0]){
-    formData.append("photo", photo.files[0]);
-  }
-
-  fetch(API_URL, {
-    method: "POST",
-    body: formData
-  })
-  .then(r => r.text())
-  .then(res => {
-    alert("✅ Muvaffaqiyatli saqlandi");
-    name.value="";
-    phone.value="";
-    total.value="";
-    photo.value="";
-    goBack();
-  })
-  .catch(err => alert("❌ Xatolik: " + err));
+  fetch(API_URL,{method:"POST",body:fd})
+    .then(r=>r.text())
+    .then(()=>{
+      alert("✅ Muvaffaqiyatli saqlandi");
+      goBack();
+    })
+    .catch(e=>alert("❌ Xatolik"));
 }
 
-/* ===== SEARCH ===== */
+/* SEARCH */
 function doSearch(){
-  const q = query.value.trim();
-  results.innerHTML = "⏳ Yuklanmoqda...";
-
-  fetch(API_URL + "?action=search&q=" + encodeURIComponent(q))
-    .then(r => r.json())
+  results.innerHTML="⏳ Yuklanmoqda...";
+  fetch(API_URL+"?action=search&q="+encodeURIComponent(query.value))
+    .then(r=>r.json())
     .then(showResults)
     .catch(()=>results.innerHTML="❌ Xatolik");
 }
 
-/* ===== LOAD ALL ===== */
+/* LOAD ALL */
 function loadAll(){
-  results.innerHTML = "⏳ Yuklanmoqda...";
-  fetch(API_URL + "?action=all")
-    .then(r => r.json())
+  results.innerHTML="⏳ Yuklanmoqda...";
+  fetch(API_URL+"?action=all")
+    .then(r=>r.json())
     .then(showResults)
     .catch(()=>results.innerHTML="❌ Xatolik");
 }
 
-/* ===== RENDER ===== */
+/* RENDER */
 function showResults(list){
   results.innerHTML="";
   if(!list || list.length===0){
@@ -137,33 +127,27 @@ function showResults(list){
   }
 
   list.forEach(d=>{
-    const remain = d.total - d.paid;
-    const cls = remain===0 ? "green" : "";
-    results.innerHTML += `
-      <div class="card ${cls}">
-        🕒 ${d.date}<br>
-        <b>${d.name}</b><br>
-        📞 ${d.phone}<br>
-        💰 Qarz: ${d.total}<br>
-        💵 To‘langan: ${d.paid}<br>
-        📉 Qolgan: ${remain}<br>
+    results.innerHTML+=`
+      <div class="card">
+        🗓 Sana: ${d.date}<br>
+        👤 ${d.name}<br>
+        💰 Jami qarz: ${d.total}<br>
         ${d.photo ? `🖼 <a href="${d.photo}" target="_blank">Rasm</a>` : ""}
       </div>`;
   });
 }
 
-/* ===== CSV ===== */
+/* CSV */
 function exportCSV(){
   fetch(API_URL+"?action=all")
     .then(r=>r.json())
     .then(data=>{
-      let csv="Sana,Ism,Telefon,Qarz,To'langan,Rasm\n";
+      let csv="Sana,Ism,Telefon,Jami,Rasm\n";
       data.forEach(d=>{
-        csv+=`${d.date},${d.name},${d.phone},${d.total},${d.paid},${d.photo||""}\n`;
+        csv+=`${d.date},${d.name},${d.phone},${d.total},${d.photo||""}\n`;
       });
-      const blob=new Blob([csv],{type:"text/csv"});
       const a=document.createElement("a");
-      a.href=URL.createObjectURL(blob);
+      a.href=URL.createObjectURL(new Blob([csv]));
       a.download="qarzlar.csv";
       a.click();
     });
