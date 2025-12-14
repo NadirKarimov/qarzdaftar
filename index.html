@@ -1,26 +1,25 @@
 <!DOCTYPE html>
 <html lang="uz">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>📒 Qarz daftari</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
-  body { font-family: Arial; background:#f4f6f8; padding:15px; }
-  h2 { text-align:center; }
-  button { width:100%; padding:12px; margin:6px 0; font-size:16px; }
-  .add { background:#2ea043; color:white; border:none; }
-  .search { background:#0969da; color:white; border:none; }
-  .export { background:#f59e0b; color:white; border:none; }
-  .back { background:#6c757d; color:white; border:none; }
-  input { width:100%; padding:10px; margin:5px 0; box-sizing:border-box; }
-  .hidden { display:none; }
-  .card { border:1px solid #ccc; padding:10px; margin-top:10px; background:#fff; border-radius:8px; }
-  table { width:100%; border-collapse:collapse; background:#fff; margin-top:10px; }
-  th, td { border:1px solid #ddd; padding:8px; font-size:14px; }
-  th { background:#eef2f7; text-align:left; }
-  .muted { color:#6b7280; font-size:13px; }
+body { font-family: Arial; background:#f4f6f8; padding:15px; }
+h2 { text-align:center; }
+button { width:100%; padding:12px; margin:6px 0; font-size:16px; }
+.add { background:#2ea043; color:white; border:none; }
+.search { background:#0969da; color:white; border:none; }
+.back { background:#6c757d; color:white; border:none; }
+.export { background:#f59e0b; color:white; border:none; }
+input { width:100%; padding:10px; margin:5px 0; }
+.hidden { display:none; }
+.card { border:1px solid #ccc; padding:10px; margin-top:10px; background:#fff; }
+.green { background:#d4edda; }
 </style>
 </head>
+
 <body>
 
 <h2 id="title">📒 Qarz daftari</h2>
@@ -28,217 +27,146 @@
 <div id="menu">
   <button class="add" onclick="openAdd()">➕ Qarz qo‘shish</button>
   <button class="search" onclick="openSearch()">🔍 Qidirish</button>
-  <button class="export" onclick="exportCSV()">📤 CSV (Excel)</button>
+  <button class="export" onclick="exportCSV()">📤 Excel (CSV)</button>
 </div>
 
 <!-- ADD -->
 <div id="addBox" class="hidden">
-  <input id="inpName" placeholder="Ism familiya" />
-  <input id="inpPhone" placeholder="Telefon raqam" />
-  <input id="inpTotal" type="number" placeholder="Qarz summasi (so‘m)" />
-  <div class="muted">📷 Rasm: kamera yoki galereya</div>
-  <input id="inpPhoto" type="file" accept="image/*" capture="environment" />
+  <input id="name" placeholder="Ism familiya" required>
+  <input id="phone" placeholder="Telefon raqam" required>
+  <input id="total" type="number" placeholder="Qarz summasi (so‘m)" required>
+  <input id="photo" type="file" accept="image/*">
   <button class="add" onclick="saveDebt()">💾 Saqlash</button>
   <button class="back" onclick="goBack()">🔙 Orqaga</button>
 </div>
 
 <!-- SEARCH -->
 <div id="searchBox" class="hidden">
-  <input id="inpQuery" placeholder="Ism yoki telefon bo‘yicha qidirish..." oninput="doSearch()" />
+  <input id="query" placeholder="Ism yoki telefon orqali qidirish">
+  <button class="search" onclick="doSearch()">🔎 Qidirish</button>
+  <button class="search" onclick="loadAll()">📋 Barchasini ko‘rish</button>
   <div id="results"></div>
   <button class="back" onclick="goBack()">🔙 Orqaga</button>
 </div>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbyd81D998Alfz0g9a3Umy61Ym59P8KePoZVgpAY8SpXqtJtZUR2mgSnjsdEfYa2Vj2PGw/exec";
+/* ==============================
+   🔗 GOOGLE APPS SCRIPT API
+   ============================== */
+const API_URL = "https://script.google.com/macros/s/AKfycbzCzvclQVGECPNa5i4HvkNWqcX1XfOUZyjgOIrIbVNXrjOvtbA9Heah0GkSBpODSryfHw/exec";
 
-const elTitle   = document.getElementById("title");
-const elMenu    = document.getElementById("menu");
-const elAddBox  = document.getElementById("addBox");
-const elSearch  = document.getElementById("searchBox");
-const elResults = document.getElementById("results");
-
-const elName  = document.getElementById("inpName");
-const elPhone = document.getElementById("inpPhone");
-const elTotal = document.getElementById("inpTotal");
-const elPhoto = document.getElementById("inpPhoto");
-const elQuery = document.getElementById("inpQuery");
-
-let CACHE = []; // yuklangan ro'yxat
-
+/* ===== UI ===== */
 function openAdd(){
-  elTitle.innerText = "➕ Qarz qo‘shish";
-  elMenu.classList.add("hidden");
-  elAddBox.classList.remove("hidden");
+  title.innerText="➕ Qarz qo‘shish";
+  menu.classList.add("hidden");
+  addBox.classList.remove("hidden");
 }
-
 function openSearch(){
-  elTitle.innerText = "🔍 Qidirish";
-  elMenu.classList.add("hidden");
-  elSearch.classList.remove("hidden");
-  loadAll(); // kirganda hammasini ko'rsatadi
+  title.innerText="🔍 Qidirish";
+  menu.classList.add("hidden");
+  searchBox.classList.remove("hidden");
 }
-
 function goBack(){
-  elTitle.innerText="📒 Qarz daftari";
-  elMenu.classList.remove("hidden");
-  elAddBox.classList.add("hidden");
-  elSearch.classList.add("hidden");
-  elResults.innerHTML="";
-  elQuery.value = "";
+  title.innerText="📒 Qarz daftari";
+  menu.classList.remove("hidden");
+  addBox.classList.add("hidden");
+  searchBox.classList.add("hidden");
+  results.innerHTML="";
 }
 
+/* ===== ADD ===== */
 function saveDebt(){
-  const name  = (elName.value || "").trim();
-  const phone = (elPhone.value || "").trim();
-  const total = (elTotal.value || "").trim();
-
-  if(!name || !phone || !total){
-    alert("Majburiy maydonlar to‘ldirilmagan (Ism, Telefon, Qarz summasi)!");
+  if(!name.value || !phone.value || !total.value){
+    alert("❗ Majburiy maydonlar to‘ldirilmagan");
     return;
   }
 
-  const file = elPhoto.files && elPhoto.files[0];
-  if(file){
-    const reader = new FileReader();
-    reader.onload = () => sendDebt(reader.result);
-    reader.readAsDataURL(file);
-  } else {
-    sendDebt(""); // rasm ixtiyoriy
-  }
-}
+  const formData = new FormData();
+  formData.append("action", "add");
+  formData.append("name", name.value);
+  formData.append("phone", phone.value);
+  formData.append("total", total.value);
+  formData.append("date", new Date().toLocaleString());
 
-function sendDebt(photoData){
+  if(photo.files[0]){
+    formData.append("photo", photo.files[0]);
+  }
+
   fetch(API_URL, {
     method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({
-      action: "add",
-      name: (elName.value || "").trim(),
-      phone: (elPhone.value || "").trim(),
-      total: Number(elTotal.value),
-      paid: 0,
-      photo: photoData,
-      date: new Date().toLocaleString()
-    })
+    body: formData
   })
-  .then(async (r) => {
-    const t = await r.text();
-    if(!r.ok) throw new Error(t || ("HTTP " + r.status));
-    return t;
-  })
-  .then(() => {
+  .then(r => r.text())
+  .then(res => {
     alert("✅ Muvaffaqiyatli saqlandi");
-    elName.value = "";
-    elPhone.value = "";
-    elTotal.value = "";
-    elPhoto.value = "";
+    name.value="";
+    phone.value="";
+    total.value="";
+    photo.value="";
     goBack();
   })
-  .catch(err => {
-    alert("❌ Saqlashda xatolik: " + err.message);
-  });
+  .catch(err => alert("❌ Xatolik: " + err));
 }
 
-function loadAll(){
-  elResults.innerHTML = "⏳ Yuklanmoqda...";
-  fetch(API_URL)
-    .then(async (r) => {
-      const text = await r.text();
-      // JSON bo'lmasa ham ko'rib xato chiqaramiz:
-      try { return JSON.parse(text); }
-      catch { throw new Error("Server JSON qaytarmadi. Javob: " + text.slice(0,200)); }
-    })
-    .then(data => {
-      CACHE = Array.isArray(data) ? data : [];
-      renderTable(CACHE);
-    })
-    .catch(err => {
-      elResults.innerHTML = "❌ Yuklash xatosi: " + err.message;
-    });
-}
-
+/* ===== SEARCH ===== */
 function doSearch(){
-  const q = (elQuery.value || "").toLowerCase().trim();
-  const filtered = CACHE.filter(d =>
-    String(d.name || "").toLowerCase().includes(q) ||
-    String(d.phone || "").includes(q)
-  );
-  renderTable(filtered);
+  const q = query.value.trim();
+  results.innerHTML = "⏳ Yuklanmoqda...";
+
+  fetch(API_URL + "?action=search&q=" + encodeURIComponent(q))
+    .then(r => r.json())
+    .then(showResults)
+    .catch(()=>results.innerHTML="❌ Xatolik");
 }
 
-function renderTable(list){
-  if(!list || list.length === 0){
-    elResults.innerHTML = "<div class='card'>❌ Hech narsa topilmadi</div>";
+/* ===== LOAD ALL ===== */
+function loadAll(){
+  results.innerHTML = "⏳ Yuklanmoqda...";
+  fetch(API_URL + "?action=all")
+    .then(r => r.json())
+    .then(showResults)
+    .catch(()=>results.innerHTML="❌ Xatolik");
+}
+
+/* ===== RENDER ===== */
+function showResults(list){
+  results.innerHTML="";
+  if(!list || list.length===0){
+    results.innerHTML="❌ Ma’lumot topilmadi";
     return;
   }
 
-  // Siz so‘ragan ustunlar:
-  // Sana | Ism familiya | Qarz | Nomer | Yuklangan rasm link
-  let html = `
-    <table>
-      <thead>
-        <tr>
-          <th>Sana</th>
-          <th>Ism familiya</th>
-          <th>Qarz</th>
-          <th>Nomer</th>
-          <th>Rasm</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
-
-  list.forEach(d => {
-    const date  = d.date || "";
-    const name  = d.name || "";
-    const phone = d.phone || "";
-    const total = (d.total ?? "");
-    const photo = d.photo || "";
-
-    const photoCell = photo
-      ? `<a href="${photo}" target="_blank">📷 Link</a>`
-      : `<span class="muted">yo‘q</span>`;
-
-    html += `
-      <tr>
-        <td>${escapeHtml(date)}</td>
-        <td>${escapeHtml(name)}</td>
-        <td>${escapeHtml(String(total))}</td>
-        <td>${escapeHtml(phone)}</td>
-        <td>${photoCell}</td>
-      </tr>
-    `;
+  list.forEach(d=>{
+    const remain = d.total - d.paid;
+    const cls = remain===0 ? "green" : "";
+    results.innerHTML += `
+      <div class="card ${cls}">
+        🕒 ${d.date}<br>
+        <b>${d.name}</b><br>
+        📞 ${d.phone}<br>
+        💰 Qarz: ${d.total}<br>
+        💵 To‘langan: ${d.paid}<br>
+        📉 Qolgan: ${remain}<br>
+        ${d.photo ? `🖼 <a href="${d.photo}" target="_blank">Rasm</a>` : ""}
+      </div>`;
   });
-
-  html += `</tbody></table>`;
-  elResults.innerHTML = html;
 }
 
+/* ===== CSV ===== */
 function exportCSV(){
-  fetch(API_URL)
+  fetch(API_URL+"?action=all")
     .then(r=>r.json())
     .then(data=>{
-      let csv="Sana,Ism,Telefon,Qarz,Rasm\n";
+      let csv="Sana,Ism,Telefon,Qarz,To'langan,Rasm\n";
       data.forEach(d=>{
-        csv += `"${(d.date||"").replaceAll('"','""')}","${(d.name||"").replaceAll('"','""')}","${(d.phone||"").replaceAll('"','""')}",${(d.total||0)},"${(d.photo||"").replaceAll('"','""')}"\n`;
+        csv+=`${d.date},${d.name},${d.phone},${d.total},${d.paid},${d.photo||""}\n`;
       });
       const blob=new Blob([csv],{type:"text/csv"});
       const a=document.createElement("a");
       a.href=URL.createObjectURL(blob);
       a.download="qarzlar.csv";
       a.click();
-    })
-    .catch(()=>alert("❌ CSV export xato"));
-}
-
-function escapeHtml(s){
-  return String(s)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+    });
 }
 </script>
 
