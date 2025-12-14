@@ -1,7 +1,56 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<title>📒 Qarz daftari</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body { font-family: Arial; background:#f4f6f8; padding:15px; }
+h2 { text-align:center; }
+button { width:100%; padding:12px; margin:6px 0; font-size:16px; }
+.add { background:#2ea043; color:white; border:none; }
+.search { background:#0969da; color:white; border:none; }
+.back { background:#6c757d; color:white; border:none; }
+.all { background:#8b5cf6; color:white; border:none; }
+input { width:100%; padding:10px; margin:5px 0; }
+.hidden { display:none; }
+.card { border:1px solid #ccc; padding:10px; margin-top:10px; background:#fff; }
+.green { background:#d4edda; }
+</style>
+</head>
+
+<body>
+
+<h2 id="title">📒 Qarz daftari</h2>
+
+<div id="menu">
+  <button class="add" onclick="openAdd()">➕ Qarz qo‘shish</button>
+  <button class="search" onclick="openSearch()">🔍 Qidirish</button>
+  <button class="all" onclick="loadAll()">📋 Barchasini ko‘rish</button>
+</div>
+
+<!-- ADD -->
+<div id="addBox" class="hidden">
+  <input id="name" placeholder="Ism familiya">
+  <input id="phone" placeholder="Telefon raqam">
+  <input id="total" type="number" placeholder="Qarz summasi">
+  <button class="add" onclick="saveDebt()">💾 Saqlash</button>
+  <button class="back" onclick="goBack()">🔙 Orqaga</button>
+</div>
+
+<!-- SEARCH -->
+<div id="searchBox" class="hidden">
+  <input id="query" placeholder="Ism yoki telefon">
+  <button class="search" onclick="doSearch()">🔎 Qidirish</button>
+  <div id="results"></div>
+  <button class="back" onclick="goBack()">🔙 Orqaga</button>
+</div>
+
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbyd81D998Alfz0g9a3Umy61Ym59P8KePoZVgpAY8SpXqtJtZUR2mgSnjsdEfYa2Vj2PGw/exec";
 
-/* ===== UI ===== */
+/* UI */
 function openAdd(){
   title.innerText="➕ Qarz qo‘shish";
   menu.classList.add("hidden");
@@ -20,99 +69,52 @@ function goBack(){
   results.innerHTML="";
 }
 
-/* ===== ADD ===== */
+/* ADD */
 function saveDebt(){
-  if(!name.value || !phone.value || !total.value){
-    alert("Majburiy maydonlar to‘ldirilmagan");
-    return;
-  }
-
-  fetch(API_URL, {
-    method: "POST",
-    body: JSON.stringify({
-      action: "add",
-      name: name.value,
-      phone: phone.value,
-      total: Number(total.value),
-      date: new Date().toLocaleString()
+  fetch(API_URL,{
+    method:"POST",
+    body:JSON.stringify({
+      action:"add",
+      name:name.value,
+      phone:phone.value,
+      total:Number(total.value),
+      date:new Date().toLocaleString()
     })
-  })
-  .then(r => r.text())
-  .then(() => {
-    alert("✅ Qarz saqlandi");
-    name.value = "";
-    phone.value = "";
-    total.value = "";
-    goBack();
-  })
-  .catch(err => {
-    alert("❌ Xatolik: " + err);
-  });
+  }).then(()=>{ alert("✅ Saqlandi"); goBack(); });
 }
 
-/* ===== SEARCH ===== */
+/* SEARCH */
 function doSearch(){
-  results.innerHTML = "⏳ Qidirilmoqda...";
-
-  fetch(API_URL + "?action=search&q=" + encodeURIComponent(query.value))
-    .then(r => r.json())
-    .then(data => {
-      results.innerHTML = "";
-
-      if(!data || data.length === 0){
-        results.innerHTML = "❌ Natija topilmadi";
-        return;
-      }
-
-      data.forEach(d => {
-        const remain = d.total - d.paid;
-        const status = remain === 0 ? "🟢 Yopilgan" : "🔴 Ochiq";
-
-        results.innerHTML += `
-          <div class="card ${remain===0?'green':''}">
-            <b>${d.name}</b><br>
-            📞 ${d.phone}<br>
-            💰 Jami: ${d.total}<br>
-            💵 To‘langan: ${d.paid}<br>
-            📉 Qolgan: ${remain}<br>
-            📌 ${status}<br>
-            🕒 ${d.date}
-          </div>
-        `;
-      });
-    })
-    .catch(err=>{
-      results.innerHTML="❌ Xatolik: "+err;
-    });
+  results.innerHTML="⏳";
+  fetch(API_URL+"?action=search&q="+query.value)
+    .then(r=>r.json())
+    .then(showResults);
 }
 
-/* ===== LOAD ALL ===== */
+/* LOAD ALL */
 function loadAll(){
   title.innerText="📋 Barcha qarzlar";
   menu.classList.add("hidden");
   searchBox.classList.remove("hidden");
-  results.innerHTML="⏳ Yuklanmoqda...";
-
   fetch(API_URL)
     .then(r=>r.json())
-    .then(showResults)
-    .catch(e=>results.innerHTML="❌ Xatolik");
+    .then(showResults);
 }
 
-/* ===== RENDER ===== */
+/* RENDER */
 function showResults(list){
   results.innerHTML="";
   list.forEach(d=>{
-    const remain = d.total - d.paid;
-    const cls = remain===0 ? "green" : "";
-    results.innerHTML += `
-      <div class="card ${cls}">
+    const r=d.total-d.paid;
+    results.innerHTML+=`
+      <div class="card ${r===0?'green':''}">
         <b>${d.name}</b><br>
         📞 ${d.phone}<br>
-        💰 Jami: ${d.total}<br>
-        💵 To‘langan: ${d.paid}<br>
-        📉 Qolgan: ${remain}
+        💰 ${d.total} | 💵 ${d.paid} | 📉 ${r}
       </div>`;
   });
 }
 </script>
+
+</body>
+</html>
