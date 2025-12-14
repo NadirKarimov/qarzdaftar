@@ -2,25 +2,23 @@
 <html lang="uz">
 <head>
 <meta charset="UTF-8">
-<title>Qarz daftari</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
+<title>Qarz Daftari</title>
 <style>
-body{font-family:Arial;background:#f2f5f8;padding:15px}
-h2{text-align:center}
-button{padding:14px;margin:6px 0;width:100%;font-size:16px;border:none;border-radius:6px;color:#fff}
-.green{background:#2e7d32}
-.blue{background:#1565c0}
-.orange{background:#ef6c00}
-.gray{background:#607d8b}
-input{padding:12px;width:100%;margin:6px 0;border-radius:6px;border:1px solid #ccc}
-.card{background:#fff;padding:10px;border-radius:6px;margin:6px 0}
+body{font-family:Arial;background:#f5f7fa;padding:15px}
+button{padding:12px;margin:6px;border:none;border-radius:6px;font-size:16px}
+.green{background:#2e7d32;color:#fff}
+.blue{background:#1565c0;color:#fff}
+.orange{background:#ef6c00;color:#fff}
+.gray{background:#555;color:#fff}
+.card{background:#fff;padding:10px;margin:8px;border-radius:6px}
+input{width:100%;padding:10px;margin:6px}
 .hidden{display:none}
 </style>
 </head>
+
 <body>
 
-<h2 id="title">📒 Qarz daftari</h2>
+<h2>📒 Qarz daftari</h2>
 
 <div id="menu">
   <button class="green" onclick="openAdd()">➕ Qarz qo‘shish</button>
@@ -28,102 +26,90 @@ input{padding:12px;width:100%;margin:6px 0;border-radius:6px;border:1px solid #c
   <button class="orange" onclick="exportCSV()">📤 Excel (CSV)</button>
 </div>
 
-<div id="addBox" class="hidden">
-  <input id="date" type="date">
-  <input id="name" placeholder="Ism familiya">
-  <input id="phone" placeholder="Telefon raqam">
-  <input id="total" type="number" placeholder="Qarz summasi">
-  <input id="photo" placeholder="Rasm link (ixtiyoriy)">
-  <button class="green" onclick="saveDebt()">💾 Saqlash</button>
-  <button class="gray" onclick="back()">⬅ Orqaga</button>
+<div id="add" class="hidden">
+  <input type="date" id="sana">
+  <input placeholder="Ism" id="ism">
+  <input placeholder="Telefon" id="tel">
+  <input placeholder="Summa" id="summa" type="number">
+  <input type="file" id="img" accept="image/*" capture="environment">
+  <button class="green" onclick="save()">💾 Saqlash</button>
+  <button class="gray" onclick="back()">⬅️ Orqaga</button>
 </div>
 
-<div id="searchBox" class="hidden">
-  <input id="query" placeholder="Ism yoki telefon (2-3 belgi yetadi)">
-  <button class="blue" onclick="search()">🔍 Qidirish</button>
+<div id="search" class="hidden">
+  <input placeholder="Ism yoki telefon" id="q" oninput="search()">
   <div id="list"></div>
-  <button class="gray" onclick="back()">⬅ Orqaga</button>
+  <button class="gray" onclick="back()">⬅️ Orqaga</button>
 </div>
 
 <script>
-const API = "https://script.google.com/macros/s/AKfycbx8XSb_JTNDZ7kq5yRIUTgdljyDV-TztkBqa4LG918whyAgW5QTPcRqmmQX6t2E2nhaUQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyo7RHFyMOPFJ-gZvfx7XSQXnZSpDRg_3rWz8GB7EPKY7IJO-5DQszWkuu9N4L9kuBHzw/exec";
 
-date.valueAsDate = new Date();
+function openAdd(){menu.hidden=true;add.hidden=false}
+function openSearch(){menu.hidden=true;search.hidden=false;search()}
+function back(){menu.hidden=false;add.hidden=true;search.hidden=true}
 
-function openAdd(){
-  title.innerText="➕ Qarz qo‘shish";
-  menu.classList.add("hidden");
-  addBox.classList.remove("hidden");
+async function save(){
+  const f = img.files[0];
+  let image = "";
+  if (f) {
+    const r = new FileReader();
+    r.onload = async () => {
+      image = r.result;
+      send(image);
+    };
+    r.readAsDataURL(f);
+  } else send("");
 }
 
-function openSearch(){
-  title.innerText="🔍 Qidirish";
-  menu.classList.add("hidden");
-  searchBox.classList.remove("hidden");
-}
-
-function back(){
-  title.innerText="📒 Qarz daftari";
-  menu.classList.remove("hidden");
-  addBox.classList.add("hidden");
-  searchBox.classList.add("hidden");
-}
-
-function saveDebt(){
-  fetch(API,{
+function send(image){
+  fetch(API_URL,{
     method:"POST",
     body:JSON.stringify({
-      date: date.value,
-      name: name.value,
-      phone: phone.value,
-      total: total.value,
-      photo: photo.value
+      sana:sana.value,
+      ism:ism.value,
+      tel:tel.value,
+      summa:summa.value,
+      image:image
     })
-  })
-  .then(r=>r.text())
-  .then(t=>{
-    if(t!=="OK") throw t;
+  }).then(r=>r.json()).then(r=>{
     alert("✅ Saqlandi");
     back();
-  })
-  .catch(e=>alert("❌ "+e));
+  }).catch(e=>alert("❌ Xato"));
 }
 
 function search(){
-  fetch(API+"?q="+encodeURIComponent(query.value))
-  .then(r=>r.json())
-  .then(show);
-}
-
-function show(arr){
-  list.innerHTML="";
-  arr.forEach(x=>{
-    list.innerHTML+=`
-      <div class="card">
-        📅 ${x.date}<br>
-        👤 ${x.name}<br>
-        📞 ${x.phone}<br>
-        💰 ${x.total}<br>
-        ${x.photo ? `<a href="${x.photo}" target="_blank">📷 Rasm</a>`:""}
-      </div>`;
-  });
+  fetch(API_URL+"?q="+q.value)
+    .then(r=>r.json())
+    .then(d=>{
+      list.innerHTML="";
+      d.forEach(x=>{
+        list.innerHTML+=`
+          <div class="card">
+            <b>${x.ism}</b><br>
+            📞 ${x.tel}<br>
+            💰 ${x.summa}<br>
+            📅 ${x.sana}<br>
+            ${x.rasm?`<a href="${x.rasm}" target="_blank">📷 Rasm</a>`:""}
+          </div>`;
+      });
+    });
 }
 
 function exportCSV(){
-  fetch(API)
-  .then(r=>r.json())
-  .then(data=>{
-    let csv="Sana,Ism,Telefon,Qarz,Rasm\n";
-    data.forEach(x=>{
-      csv+=`${x.date},${x.name},${x.phone},${x.total},${x.photo}\n`;
+  fetch(API_URL)
+    .then(r=>r.json())
+    .then(d=>{
+      let csv="Sana,Ism,Telefon,Summa,Rasm\n";
+      d.forEach(x=>{
+        csv+=`${x.sana},${x.ism},${x.tel},${x.summa},${x.rasm}\n`;
+      });
+      const a=document.createElement("a");
+      a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
+      a.download="qarzlar.csv";
+      a.click();
     });
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
-    a.download="qarzlar.csv";
-    a.click();
-  });
 }
 </script>
-
 </body>
 </html>
