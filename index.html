@@ -4,22 +4,25 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>📒 Qarz daftari</title>
-
 <style>
-  body { font-family: Arial; background:#f4f6f8; padding:15px; }
-  h2 { text-align:center; margin:10px 0 14px; }
-  button { width:100%; padding:12px; margin:6px 0; font-size:16px; border-radius:10px; }
-  .add { background:#2ea043; color:white; border:none; }
-  .search { background:#0969da; color:white; border:none; }
-  .back { background:#6c757d; color:white; border:none; }
-  .export { background:#f59e0b; color:white; border:none; }
-  input { width:100%; padding:10px; margin:6px 0; border-radius:10px; border:1px solid #cfd6dd; }
+  body { font-family: Arial, sans-serif; background:#f4f6f8; padding:15px; }
+  h2 { text-align:center; margin:10px 0 15px; }
+  button { width:100%; padding:12px; margin:6px 0; font-size:16px; border:none; border-radius:10px; cursor:pointer; }
+  .add { background:#2ea043; color:#fff; }
+  .search { background:#0969da; color:#fff; }
+  .export { background:#f59e0b; color:#fff; }
+  .back { background:#6c757d; color:#fff; }
+  input { width:100%; padding:10px; margin:6px 0; border:1px solid #ccc; border-radius:10px; font-size:15px; }
   .hidden { display:none; }
-  .card { border:1px solid #d0d7de; padding:12px; margin-top:10px; background:#fff; border-radius:12px; }
+  .card { border:1px solid #ddd; padding:10px; margin-top:10px; background:#fff; border-radius:12px; }
   .row { display:flex; gap:10px; }
-  .row > div { flex:1; }
-  .hint { font-size:12px; color:#57606a; margin-top:4px; }
-  .error { color:#b42318; font-weight:700; }
+  .row button { width:50%; }
+  .small { font-size:13px; color:#666; }
+  table { width:100%; border-collapse:collapse; background:#fff; margin-top:10px; border-radius:12px; overflow:hidden; }
+  th, td { border-bottom:1px solid #eee; padding:10px; text-align:left; font-size:14px; }
+  th { background:#f0f3f6; }
+  a { word-break: break-all; }
+  .error { color:#b00020; font-weight:bold; margin-top:8px; }
 </style>
 </head>
 
@@ -27,218 +30,255 @@
 <h2 id="title">📒 Qarz daftari</h2>
 
 <div id="menu">
-  <button class="add" onclick="openAdd()">➕ Qarz qo‘shish</button>
-  <button class="search" onclick="openSearch()">🔍 Qidirish</button>
-  <button class="export" onclick="exportCSV()">📤 Excel (CSV)</button>
+  <button class="add" id="btnOpenAdd">➕ Qarz qo‘shish</button>
+  <button class="search" id="btnOpenSearch">🔍 Qidirish</button>
+  <button class="export" id="btnExport">📤 Excel (CSV)</button>
 </div>
 
 <!-- ADD -->
 <div id="addBox" class="hidden">
-  <input id="debtDate" type="date" />
+  <input id="inpDate" type="date" />
+  <input id="inpName" placeholder="Ism familiya" />
+  <input id="inpPhone" placeholder="Telefon raqam" inputmode="numeric" />
+  <input id="inpTotal" type="number" placeholder="Qarz summasi (so‘m)" />
+  <div class="small">📷 Rasm ixtiyoriy (hozircha link sifatida saqlanadi). Keyin Drive upload qo‘shamiz.</div>
+  <input id="inpPhotoLink" placeholder="Rasm link (ixtiyoriy) - masalan: https://..." />
 
-  <input id="fullName" placeholder="Ism familiya" />
-  <input id="phoneNumber" placeholder="Telefon raqam" inputmode="tel" />
-  <input id="totalAmount" type="number" placeholder="Jami qarz (so‘m)" inputmode="numeric" />
-
-  <div class="hint">📷 Rasm ixtiyoriy. (Galereyadan tanlasa ham bo‘ladi)</div>
-  <input id="photoFile" type="file" accept="image/*" />
-
-  <button class="add" onclick="saveDebt()">💾 Saqlash</button>
-  <button class="back" onclick="goBack()">🔙 Orqaga</button>
+  <button class="add" id="btnSave">💾 Saqlash</button>
+  <button class="back" id="btnBack1">🔙 Orqaga</button>
+  <div id="addErr" class="error"></div>
 </div>
 
 <!-- SEARCH -->
 <div id="searchBox" class="hidden">
-  <input id="query" placeholder="Ism yoki telefon orqali qidirish" />
+  <input id="inpQuery" placeholder="Ism yoki telefon orqali qidirish" />
   <div class="row">
-    <div><button class="search" onclick="doSearch()">🔎 Qidirish</button></div>
-    <div><button class="search" onclick="loadAll()">📋 Barchasini ko‘rish</button></div>
+    <button class="search" id="btnDoSearch">🔎 Qidirish</button>
+    <button class="search" id="btnLoadAll">📋 Barchasini ko‘rish</button>
   </div>
+
   <div id="results"></div>
-  <button class="back" onclick="goBack()">🔙 Orqaga</button>
+
+  <button class="back" id="btnBack2">🔙 Orqaga</button>
 </div>
 
 <script>
-/* ✅ Yangi Apps Script Web App link */
+/** 🔥 BU YERGA SIZNING YANGI /exec LINKINGIZ QO‘YILADI */
 const API_URL = "https://script.google.com/macros/s/AKfycbzCzvclQVGECPNa5i4HvkNWqcX1XfOUZyjgOIrIbVNXrjOvtbA9Heah0GkSBpODSryfHw/exec";
 
-/* elementlar (window.name bilan to‘qnashmasin!) */
+/* ===== ELEMENTS ===== */
 const elTitle = document.getElementById("title");
 const elMenu = document.getElementById("menu");
+
 const elAddBox = document.getElementById("addBox");
 const elSearchBox = document.getElementById("searchBox");
-const elResults = document.getElementById("results");
 
-const elDate = document.getElementById("debtDate");
-const elFullName = document.getElementById("fullName");
-const elPhone = document.getElementById("phoneNumber");
-const elTotal = document.getElementById("totalAmount");
-const elPhoto = document.getElementById("photoFile");
-const elQuery = document.getElementById("query");
+const inpDate = document.getElementById("inpDate");
+const inpName = document.getElementById("inpName");
+const inpPhone = document.getElementById("inpPhone");
+const inpTotal = document.getElementById("inpTotal");
+const inpPhotoLink = document.getElementById("inpPhotoLink");
+const addErr = document.getElementById("addErr");
 
-/* Sana default: bugun */
-elDate.value = new Date().toISOString().split("T")[0];
+const inpQuery = document.getElementById("inpQuery");
+const results = document.getElementById("results");
 
-/* UI */
+/* ===== HELPERS ===== */
+function todayISO(){
+  const d = new Date();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+inpDate.value = todayISO();
+
+function showMenu(){
+  elTitle.innerText = "📒 Qarz daftari";
+  elMenu.classList.remove("hidden");
+  elAddBox.classList.add("hidden");
+  elSearchBox.classList.add("hidden");
+  results.innerHTML = "";
+  addErr.textContent = "";
+}
 function openAdd(){
   elTitle.innerText = "➕ Qarz qo‘shish";
   elMenu.classList.add("hidden");
   elAddBox.classList.remove("hidden");
+  elSearchBox.classList.add("hidden");
+  addErr.textContent = "";
 }
 function openSearch(){
   elTitle.innerText = "🔍 Qidirish";
   elMenu.classList.add("hidden");
+  elAddBox.classList.add("hidden");
   elSearchBox.classList.remove("hidden");
-  // Qidirishga kirgan zahoti hammasini ko‘rsatib yuboramiz:
+  results.innerHTML = "";
+  // kirgan zahoti hammasini ko‘rsatib turamiz
   loadAll();
 }
-function goBack(){
-  elTitle.innerText="📒 Qarz daftari";
-  elMenu.classList.remove("hidden");
-  elAddBox.classList.add("hidden");
-  elSearchBox.classList.add("hidden");
-  elResults.innerHTML="";
+
+/* ===== API CALLS ===== */
+async function apiGet(action, q){
+  const url = new URL(API_URL);
+  if (action) url.searchParams.set("action", action);
+  if (q !== undefined) url.searchParams.set("q", q);
+  const r = await fetch(url.toString(), { method:"GET" });
+  if(!r.ok) throw new Error("HTTP " + r.status);
+  return await r.json();
+}
+async function apiAdd(payload){
+  const r = await fetch(API_URL, {
+    method:"POST",
+    body: JSON.stringify(payload) // headers qo‘ymaymiz (preflight bo‘lmasin)
+  });
+  const t = await r.text();
+  return t;
 }
 
-/* ADD */
+/* ===== RENDER TABLE ===== */
+function renderTable(list){
+  if(!list || list.length === 0){
+    results.innerHTML = "<div class='error'>❌ Natija topilmadi</div>";
+    return;
+  }
+
+  const rowsHtml = list.map(x => `
+    <tr>
+      <td>${escapeHtml(x.date || "")}</td>
+      <td>${escapeHtml(x.name || "")}</td>
+      <td>${escapeHtml(String(x.total ?? ""))}</td>
+      <td>${escapeHtml(x.phone || "")}</td>
+      <td>${x.photo ? `<a href="${escapeAttr(x.photo)}" target="_blank">link</a>` : ""}</td>
+    </tr>
+  `).join("");
+
+  results.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Sana</th>
+          <th>Ism familiya</th>
+          <th>Jami qarz</th>
+          <th>Telefon</th>
+          <th>Rasm link</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  `;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function escapeAttr(s){ return escapeHtml(s); }
+
+/* ===== ACTIONS ===== */
 async function saveDebt(){
-  const date = (elDate.value || "").trim();
-  const name = (elFullName.value || "").trim();
-  const phone = (elPhone.value || "").trim();
-  const total = (elTotal.value || "").trim();
+  addErr.textContent = "";
+  const date = inpDate.value;
+  const name = inpName.value.trim();
+  const phone = inpPhone.value.trim();
+  const total = inpTotal.value.trim();
+  const photo = inpPhotoLink.value.trim();
 
   if(!date || !name || !phone || !total){
-    alert("❗ Barcha majburiy maydonlarni to‘ldiring");
+    addErr.textContent = "❗ Barcha majburiy maydonlarni to‘ldiring (Sana, Ism, Telefon, Summa).";
     return;
   }
 
-  const fd = new FormData();
-  fd.append("action", "add");
-  fd.append("date", date);
-  fd.append("name", name);
-  fd.append("phone", phone);
-  fd.append("total", total);
-
-  if (elPhoto.files && elPhoto.files[0]) {
-    fd.append("photo", elPhoto.files[0]);
-  }
-
   try{
-    // Apps Script ba'zan redirect qiladi, shuning uchun follow
-    const res = await fetch(API_URL, { method:"POST", body: fd, redirect:"follow" });
-    const txt = await res.text();
-
-    // Agar server xato qaytarsa ko‘rsatib beramiz:
-    if(!res.ok){
-      alert("❌ Server xatosi: " + res.status + "\n" + txt);
-      return;
-    }
-
-    alert("✅ Muvaffaqiyatli saqlandi");
-
-    // tozalash
-    elFullName.value = "";
-    elPhone.value = "";
-    elTotal.value = "";
-    elPhoto.value = "";
-    elDate.value = new Date().toISOString().split("T")[0];
-
-    // qidirishga qaytib, ro‘yxatni ko‘rsatamiz
-    openSearch();
-  }catch(e){
-    alert("❌ Failed to fetch (Deploy/Permission/CORS bo‘lishi mumkin)\n\n" + e);
-  }
-}
-
-/* SEARCH */
-async function doSearch(){
-  const q = (elQuery.value || "").trim();
-  elResults.innerHTML = "⏳ Yuklanmoqda...";
-
-  try{
-    const res = await fetch(API_URL + "?action=search&q=" + encodeURIComponent(q));
-    const data = await res.json();
-    showResults(data);
-  }catch(e){
-    elResults.innerHTML = `<div class="error">❌ Xatolik: ${e}</div>`;
-  }
-}
-
-/* LOAD ALL */
-async function loadAll(){
-  elResults.innerHTML = "⏳ Yuklanmoqda...";
-
-  try{
-    // ko‘p Apps Scriptlarda "hammasi" — shunchaki /exec ni ochish
-    const res = await fetch(API_URL);
-    const data = await res.json();
-    showResults(data);
-  }catch(e){
-    elResults.innerHTML = `<div class="error">❌ Barchasini ko‘rsatishda xatolik: ${e}</div>`;
-  }
-}
-
-/* RENDER: Sana | Ism | Jami | Telefon | Rasm link */
-function showResults(list){
-  elResults.innerHTML = "";
-
-  if(!list || !Array.isArray(list) || list.length === 0){
-    elResults.innerHTML = "❌ Ma’lumot topilmadi";
-    return;
-  }
-
-  list.forEach(d=>{
-    const date = d.date ?? "";
-    const name = d.name ?? "";
-    const phone = d.phone ?? "";
-    const total = d.total ?? "";
-    const photo = d.photo ?? "";
-
-    elResults.innerHTML += `
-      <div class="card">
-        🗓 <b>Sana:</b> ${escapeHtml(date)}<br>
-        👤 <b>Ism:</b> ${escapeHtml(name)}<br>
-        💰 <b>Jami qarz:</b> ${escapeHtml(String(total))}<br>
-        📞 <b>Tel:</b> ${escapeHtml(phone)}<br>
-        🖼 <b>Rasm:</b> ${photo ? `<a href="${photo}" target="_blank">Link</a>` : "—"}
-      </div>
-    `;
-  });
-}
-
-/* CSV */
-async function exportCSV(){
-  try{
-    const res = await fetch(API_URL);
-    const data = await res.json();
-
-    let csv = "Sana,Ism,Telefon,Jami,Rasm\n";
-    data.forEach(d=>{
-      csv += `${csvSafe(d.date)},${csvSafe(d.name)},${csvSafe(d.phone)},${csvSafe(d.total)},${csvSafe(d.photo)}\n`;
+    const res = await apiAdd({
+      action:"add",
+      date,
+      name,
+      phone,
+      total:Number(total),
+      photo
     });
 
+    if(res.trim() === "ok"){
+      alert("✅ Muvaffaqiyatli saqlandi");
+      // clear
+      inpName.value = "";
+      inpPhone.value = "";
+      inpTotal.value = "";
+      inpPhotoLink.value = "";
+      inpDate.value = todayISO();
+      showMenu();
+    } else if(res.trim() === "missing_fields"){
+      addErr.textContent = "❌ Server: majburiy maydon yetishmayapti (Apps Script).";
+    } else {
+      addErr.textContent = "❌ Server javobi: " + res;
+    }
+  } catch(e){
+    addErr.textContent = "❌ Failed to fetch. Deploy/Permission/URL tekshiring. ("+ e +")";
+  }
+}
+
+async function loadAll(){
+  results.innerHTML = "⏳ Yuklanmoqda...";
+  try{
+    const data = await apiGet("all");
+    renderTable(data);
+  } catch(e){
+    results.innerHTML = "<div class='error'>❌ Barchasini ko‘rsatishda xatolik: "+ e +"</div>";
+  }
+}
+
+async function doSearch(){
+  const q = inpQuery.value.trim();
+  if(!q){
+    // bo‘sh bo‘lsa hammasini ko‘rsatamiz
+    loadAll();
+    return;
+  }
+  results.innerHTML = "⏳ Qidirilmoqda...";
+  try{
+    const data = await apiGet("search", q);
+    renderTable(data);
+  } catch(e){
+    results.innerHTML = "<div class='error'>❌ Qidirishda xatolik: "+ e +"</div>";
+  }
+}
+
+async function exportCSV(){
+  try{
+    const data = await apiGet("all");
+    let csv = "Sana,Ism familiya,Jami qarz,Telefon,Rasm link\n";
+    data.forEach(x=>{
+      const line = [
+        (x.date||""),
+        (x.name||""),
+        (x.total??""),
+        (x.phone||""),
+        (x.photo||"")
+      ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(",");
+      csv += line + "\n";
+    });
+
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+    a.href = URL.createObjectURL(blob);
     a.download = "qarzlar.csv";
     a.click();
-  }catch(e){
+  } catch(e){
     alert("❌ CSV export xato: " + e);
   }
 }
 
-/* helpers */
-function csvSafe(v){
-  v = (v ?? "").toString().replaceAll('"','""');
-  return `"${v}"`;
-}
-function escapeHtml(s){
-  return (s ?? "").toString()
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
+/* ===== EVENTS ===== */
+document.getElementById("btnOpenAdd").addEventListener("click", openAdd);
+document.getElementById("btnOpenSearch").addEventListener("click", openSearch);
+document.getElementById("btnExport").addEventListener("click", exportCSV);
+
+document.getElementById("btnBack1").addEventListener("click", showMenu);
+document.getElementById("btnBack2").addEventListener("click", showMenu);
+
+document.getElementById("btnSave").addEventListener("click", saveDebt);
+document.getElementById("btnDoSearch").addEventListener("click", doSearch);
+document.getElementById("btnLoadAll").addEventListener("click", loadAll);
 </script>
+
 </body>
 </html>
