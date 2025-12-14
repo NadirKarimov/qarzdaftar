@@ -4,45 +4,45 @@
 <meta charset="UTF-8">
 <title>📒 Qarz daftari</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <style>
 body { font-family: Arial; background:#f4f6f8; padding:15px; }
 h2 { text-align:center; }
 button { width:100%; padding:12px; margin:6px 0; font-size:16px; }
 .add { background:#2ea043; color:white; border:none; }
 .search { background:#0969da; color:white; border:none; }
+.export { background:#f59e0b; color:white; border:none; }
 .back { background:#6c757d; color:white; border:none; }
-.all { background:#8b5cf6; color:white; border:none; }
 input { width:100%; padding:10px; margin:5px 0; }
 .hidden { display:none; }
 .card { border:1px solid #ccc; padding:10px; margin-top:10px; background:#fff; }
 .green { background:#d4edda; }
+img { max-width:100%; margin-top:5px; border-radius:6px; }
 </style>
 </head>
-
 <body>
 
 <h2 id="title">📒 Qarz daftari</h2>
 
+<!-- MENU -->
 <div id="menu">
   <button class="add" onclick="openAdd()">➕ Qarz qo‘shish</button>
   <button class="search" onclick="openSearch()">🔍 Qidirish</button>
-  <button class="all" onclick="loadAll()">📋 Barchasini ko‘rish</button>
+  <button class="export" onclick="exportCSV()">📤 CSV (Excel)</button>
 </div>
 
 <!-- ADD -->
 <div id="addBox" class="hidden">
   <input id="name" placeholder="Ism familiya">
   <input id="phone" placeholder="Telefon raqam">
-  <input id="total" type="number" placeholder="Qarz summasi">
+  <input id="total" type="number" placeholder="Qarz summasi (so‘m)">
+  <input id="photo" type="file" accept="image/*" capture="environment">
   <button class="add" onclick="saveDebt()">💾 Saqlash</button>
   <button class="back" onclick="goBack()">🔙 Orqaga</button>
 </div>
 
 <!-- SEARCH -->
 <div id="searchBox" class="hidden">
-  <input id="query" placeholder="Ism yoki telefon">
-  <button class="search" onclick="doSearch()">🔎 Qidirish</button>
+  <input id="query" placeholder="Ism yoki telefon" oninput="doSearch()">
   <div id="results"></div>
   <button class="back" onclick="goBack()">🔙 Orqaga</button>
 </div>
@@ -60,6 +60,7 @@ function openSearch(){
   title.innerText="🔍 Qidirish";
   menu.classList.add("hidden");
   searchBox.classList.remove("hidden");
+  loadAll();
 }
 function goBack(){
   title.innerText="📒 Qarz daftari";
@@ -71,48 +72,100 @@ function goBack(){
 
 /* ADD */
 function saveDebt(){
-  fetch(API_URL,{
-    method:"POST",
-    body:JSON.stringify({
-      action:"add",
-      name:name.value,
-      phone:phone.value,
-      total:Number(total.value),
-      date:new Date().toLocaleString()
-    })
-  }).then(()=>{ alert("✅ Saqlandi"); goBack(); });
+  if(!name.value || !phone.value || !total.value){
+    alert("Majburiy maydonlar to‘ldirilmagan");
+    return;
+  }
+
+  const file = photo.files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = () => sendData(reader.result);
+    reader.readAsDataURL(file);
+  } else {
+    sendData("");
+  }
 }
 
-/* SEARCH */
-function doSearch(){
-  results.innerHTML="⏳";
-  fetch(API_URL+"?action=search&q="+query.value)
-    .then(r=>r.json())
-    .then(showResults);
+function sendData(photoData){
+  fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "add",
+      name: name.value,
+      phone: phone.value,
+      total: Number(total.value),
+      paid: 0,
+      photo: photoData,
+      date: new Date().toLocaleString()
+    })
+  })
+  .then(r => r.text())
+  .then(() => {
+    alert("✅ Muvaffaqiyatli saqlandi");
+    name.value = phone.value = total.value = "";
+    photo.value = "";
+    goBack();
+  })
+  .catch(e => alert("❌ Xatolik: " + e));
 }
 
 /* LOAD ALL */
 function loadAll(){
-  title.innerText="📋 Barcha qarzlar";
-  menu.classList.add("hidden");
-  searchBox.classList.remove("hidden");
+  results.innerHTML="⏳ Yuklanmoqda...";
   fetch(API_URL)
     .then(r=>r.json())
     .then(showResults);
+}
+
+/* SEARCH */
+function doSearch(){
+  const q = query.value.toLowerCase();
+  fetch(API_URL)
+    .then(r=>r.json())
+    .then(data=>{
+      const filtered = data.filter(d =>
+        d.name.toLowerCase().includes(q) ||
+        d.phone.includes(q)
+      );
+      showResults(filtered);
+    });
 }
 
 /* RENDER */
 function showResults(list){
   results.innerHTML="";
   list.forEach(d=>{
-    const r=d.total-d.paid;
-    results.innerHTML+=`
-      <div class="card ${r===0?'green':''}">
+    const remain = d.total - d.paid;
+    results.innerHTML += `
+      <div class="card ${remain==0?'green':''}">
         <b>${d.name}</b><br>
         📞 ${d.phone}<br>
-        💰 ${d.total} | 💵 ${d.paid} | 📉 ${r}
-      </div>`;
+        💰 Jami: ${d.total}<br>
+        💵 To‘langan: ${d.paid}<br>
+        📉 Qolgan: ${remain}<br>
+        ${d.photo ? `<img src="${d.photo}">` : ""}
+        <br>🕒 ${d.date}
+      </div>
+    `;
   });
+}
+
+/* CSV */
+function exportCSV(){
+  fetch(API_URL)
+    .then(r=>r.json())
+    .then(data=>{
+      let csv="Ism,Telefon,Jami,To‘langan,Qolgan,Sana\n";
+      data.forEach(d=>{
+        csv+=`${d.name},${d.phone},${d.total},${d.paid},${d.total-d.paid},${d.date}\n`;
+      });
+      const blob=new Blob([csv],{type:"text/csv"});
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);
+      a.download="qarzlar.csv";
+      a.click();
+    });
 }
 </script>
 
